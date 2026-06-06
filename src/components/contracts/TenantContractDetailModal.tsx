@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { InlineAlert } from '../ui/FeedbackAlert'
 import { ApiError } from '../../api/client'
+import * as contractAppendicesApi from '../../api/contractAppendices'
 import * as contractItemsApi from '../../api/contractItems'
 import * as contractsApi from '../../api/contracts'
 import * as warehousesApi from '../../api/warehouses'
@@ -119,6 +120,8 @@ export function TenantContractDetailModal({
   const [boxAllocation, setBoxAllocation] = useState<ApiBoxAllocationRow[]>([])
   const [rentalDatesNote, setRentalDatesNote] = useState<string | null>(null)
   const [rentalRequestCode, setRentalRequestCode] = useState('')
+  const [showAppendixRequest, setShowAppendixRequest] = useState(false)
+  const [payingAppendixId, setPayingAppendixId] = useState<string | null>(null)
   const loadDetail = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -226,6 +229,50 @@ export function TenantContractDetailModal({
     }
     return map
   }, [items])
+
+  const handlePayAppendix = useCallback(
+    async (appendix: ApiContractAppendix) => {
+      setPayingAppendixId(appendix.appendixId)
+      setError('')
+      const payTab = window.open('about:blank', 'smartwarehouse_payos_checkout')
+      if (!payTab) {
+        setPayingAppendixId(null)
+        setError('Trình duyệt chặn cửa sổ mới — cho phép popup cho site này rồi bấm lại.')
+        return
+      }
+      try {
+        const invoices = await contractAppendicesApi.listAppendixInvoices(
+          contractId,
+          appendix.appendixId
+        )
+        const pending =
+          invoices.find((i) => i.paymentStatus === 'PENDING') ?? invoices[0]
+        if (!pending) {
+          payTab.close()
+          setError('Chưa có invoice cần thanh toán — liên hệ kho')
+          return
+        }
+        const link = await contractAppendicesApi.createAppendixInvoicePayOSLink(
+          contractId,
+          appendix.appendixId,
+          pending.invoiceId
+        )
+        if (!link.checkoutUrl) {
+          payTab.close()
+          setError('PayOS không trả checkout URL')
+          return
+        }
+        payTab.location.href = link.checkoutUrl
+        payTab.focus()
+      } catch (err) {
+        payTab.close()
+        setError(err instanceof ApiError ? err.message : 'Không tạo được link PayOS')
+      } finally {
+        setPayingAppendixId(null)
+      }
+    },
+    [contractId]
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -343,6 +390,34 @@ export function TenantContractDetailModal({
                     onInvoicePaid?.()
                   }}
                 />
+              )}
+
+              {contract.status === 'ACTIVE' && (
+                <section>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-white">Phụ lục thuê thêm</h3>
+                    {canTenantRequestAppendix(contract, canRequestTermination) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAppendixRequest(true)}
+                        className="rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 hover:bg-violet-500/20"
+                      >
+                        Yêu cầu thuê thêm
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3">
+                    <ContractAppendixListPanel
+                      contractId={contractId}
+                      isTenantAdmin={canRequestTermination}
+                      onPayAppendix={handlePayAppendix}
+                      payingAppendixId={payingAppendixId}
+                      onChanged={() => {
+                        onAppendixChange?.()
+                      }}
+                    />
+                  </div>
+                </section>
               )}
 
               <section>
@@ -492,6 +567,18 @@ export function TenantContractDetailModal({
           onSubmitted={() => {
             void loadDetail()
             onTerminationChange?.()
+          }}
+        />
+      )}
+
+      {showAppendixRequest && contract && (
+        <ContractAppendixRequestModal
+          contract={contract}
+          onClose={() => setShowAppendixRequest(false)}
+          onSubmitted={() => {
+            setShowAppendixRequest(false)
+            void loadDetail()
+            onAppendixChange?.()
           }}
         />
       )}

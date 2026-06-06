@@ -20,7 +20,13 @@ import { CONTRACT_TYPE_LABELS, type ContractTypeValue } from '../../data/contrac
 
 import { formatVnd } from '../../data/pricing'
 
-import type { ApiContract } from '../../api/types'
+import * as contractAppendicesApi from '../../api/contractAppendices'
+import type { ApiContractAppendix } from '../../api/contractAppendices'
+import type { ApiContract, ContractStatus } from '../../api/types'
+import { TenantContractAppendixActions } from '../../components/contracts/TenantContractAppendixActions'
+import { ContractAppendixSignModal } from '../../components/contracts/ContractAppendixSignModal'
+import { ContractAppendixRequestModal } from '../../components/contracts/ContractAppendixRequestModal'
+import { appendixNeedsTenantAction } from '../../utils/contractAppendix'
 import { isPendingRecurringRent } from '../../utils/invoiceLabels'
 
 import {
@@ -108,6 +114,17 @@ export function TenantContractsPage() {
   const [pendingInvoiceCountByContract, setPendingInvoiceCountByContract] = useState<
     Map<string, number>
   >(new Map())
+  const [appendicesByContract, setAppendicesByContract] = useState<
+    Map<string, ApiContractAppendix[]>
+  >(new Map())
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'' | ContractStatus>('')
+  const [payingAppendixId, setPayingAppendixId] = useState<string | null>(null)
+  const [signAppendixTarget, setSignAppendixTarget] = useState<{
+    contractId: string
+    appendix: ApiContractAppendix
+  } | null>(null)
+  const [appendixRequestContract, setAppendixRequestContract] = useState<ApiContract | null>(null)
 
   const load = useCallback(async () => {
 
@@ -168,18 +185,32 @@ export function TenantContractsPage() {
       }
 
       if (activeIds.length > 0) {
-        const pendingLists = await Promise.all(
-          activeIds.map((id) =>
-            contractsApi.listContractTerminationRequests(id, { status: 'PENDING' })
-          )
-        )
+        const [pendingLists, appendixResults] = await Promise.all([
+          Promise.all(
+            activeIds.map((id) =>
+              contractsApi.listContractTerminationRequests(id, { status: 'PENDING' })
+            )
+          ),
+          Promise.allSettled(
+            activeIds.map((id) => contractAppendicesApi.listContractAppendices(id, { limit: 50 }))
+          ),
+        ])
         const pending = new Set<string>()
         activeIds.forEach((id, i) => {
           if (pendingLists[i]?.length) pending.add(id)
         })
         setPendingTerminationIds(pending)
+
+        const byContract = new Map<string, ApiContractAppendix[]>()
+        activeIds.forEach((id, i) => {
+          const result = appendixResults[i]
+          const items = result?.status === 'fulfilled' ? result.value.items : []
+          byContract.set(id, items)
+        })
+        setAppendicesByContract(byContract)
       } else {
         setPendingTerminationIds(new Set())
+        setAppendicesByContract(new Map())
       }
 
     } catch (e) {
@@ -252,6 +283,79 @@ export function TenantContractsPage() {
           (pendingInvoiceCountByContract.get(c.contractId) ?? 0) > 0
       ),
     [contracts, pendingInvoiceCountByContract]
+  )
+
+  const filteredContracts = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return contracts.filter((c) => {
+      const matchStatus = !statusFilter || c.status === statusFilter
+      if (!q) return matchStatus
+      const whName = warehouseNames.get(c.warehouseId) ?? ''
+      const typeLabel =
+        CONTRACT_TYPE_LABELS[c.contractType as ContractTypeValue] ?? c.contractType
+      const haystack = [c.contractCode, c.contractName ?? '', whName, typeLabel, c.contractType]
+        .join(' ')
+        .toLowerCase()
+      return matchStatus && haystack.includes(q)
+    })
+  }, [contracts, search, statusFilter, warehouseNames])
+
+  const appendixActionCount = useMemo(() => {
+    let count = 0
+    for (const appendices of appendicesByContract.values()) {
+      count += appendices.filter(appendixNeedsTenantAction).length
+    }
+    return count
+  }, [appendicesByContract])
+
+  const handlePayAppendix = useCallback(
+    async (contractId: string, appendix: ApiContractAppendix) => {
+      if (payOsInFlightRef.current) return
+      payOsInFlightRef.current = true
+      setPayingAppendixId(appendix.appendixId)
+      setError('')
+
+      const payTab = window.open('about:blank', PAYOS_WINDOW_NAME)
+      if (!payTab) {
+        payOsInFlightRef.current = false
+        setPayingAppendixId(null)
+        setError('Trình duyệt chặn cửa sổ mới — cho phép popup cho site này rồi bấm lại.')
+        return
+      }
+
+      try {
+        const invoices = await contractAppendicesApi.listAppendixInvoices(
+          contractId,
+          appendix.appendixId
+        )
+        const pending =
+          invoices.find((i) => i.paymentStatus === 'PENDING') ?? invoices[0]
+        if (!pending) {
+          payTab.close()
+          setError('Chưa có invoice cần thanh toán — liên hệ kho')
+          return
+        }
+        const link = await contractAppendicesApi.createAppendixInvoicePayOSLink(
+          contractId,
+          appendix.appendixId,
+          pending.invoiceId
+        )
+        if (!link.checkoutUrl) {
+          payTab.close()
+          setError('PayOS không trả checkout URL')
+          return
+        }
+        payTab.location.href = link.checkoutUrl
+        payTab.focus()
+      } catch (e) {
+        payTab.close()
+        setError(e instanceof ApiError ? e.message : 'Không tạo được link PayOS')
+      } finally {
+        payOsInFlightRef.current = false
+        setPayingAppendixId(null)
+      }
+    },
+    []
   )
 
   const handlePayWithPayOS = useCallback(
@@ -484,6 +588,8 @@ export function TenantContractsPage() {
 
                   <th className="px-6 py-3">Tiến độ ký</th>
 
+                  <th className="px-6 py-3">Phụ lục</th>
+
                   <th className="px-6 py-3" />
 
                 </tr>
@@ -556,6 +662,21 @@ export function TenantContractsPage() {
 
                       </td>
 
+                      <td className="px-6 py-3 align-top">
+                        <TenantContractAppendixActions
+                          contract={c}
+                          appendices={appendicesByContract.get(c.contractId) ?? []}
+                          isTenantAdmin={isTenantAdmin}
+                          payingAppendixId={payingAppendixId}
+                          onRequest={() => setAppendixRequestContract(c)}
+                          onSign={(appendix) =>
+                            setSignAppendixTarget({ contractId: c.contractId, appendix })
+                          }
+                          onPay={(appendix) => void handlePayAppendix(c.contractId, appendix)}
+                          onViewDetail={() => setDetailContractId(c.contractId)}
+                        />
+                      </td>
+
                       <td className="px-6 py-3 align-top text-right">
                         <div className="flex flex-col items-end gap-1.5">
                           {canSign ? (
@@ -621,7 +742,7 @@ export function TenantContractsPage() {
 
                 {!loading && contracts.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-4 text-slate-500">
+                    <td colSpan={9} className="px-6 py-4 text-slate-500">
                       Chưa có hợp đồng nào.
                     </td>
                   </tr>
@@ -629,7 +750,7 @@ export function TenantContractsPage() {
 
                 {!loading && contracts.length > 0 && filteredContracts.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
                       Không tìm thấy hợp đồng phù hợp. Thử đổi từ khóa hoặc bộ lọc trạng thái.
                     </td>
                   </tr>
@@ -675,6 +796,29 @@ export function TenantContractsPage() {
           contractCode={contractCodeById.get(terminationContractId) ?? terminationContractId}
           onClose={() => setTerminationContractId(null)}
           onSubmitted={load}
+        />
+      )}
+
+      {signAppendixTarget && (
+        <ContractAppendixSignModal
+          contractId={signAppendixTarget.contractId}
+          appendix={signAppendixTarget.appendix}
+          onClose={() => setSignAppendixTarget(null)}
+          onSigned={() => {
+            setSignAppendixTarget(null)
+            void load()
+          }}
+        />
+      )}
+
+      {appendixRequestContract && (
+        <ContractAppendixRequestModal
+          contract={appendixRequestContract}
+          onClose={() => setAppendixRequestContract(null)}
+          onSubmitted={() => {
+            setAppendixRequestContract(null)
+            void load()
+          }}
         />
       )}
 
