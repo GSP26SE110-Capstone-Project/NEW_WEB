@@ -2,7 +2,14 @@ import type { ApiErrorBody, ApiPaginated, ApiSuccess } from './types'
 import { getAccessToken, clearSession } from '../auth/storage'
 import { translateApiErrorMessage } from '../utils/apiErrorMessages'
 
-const API_PREFIX = '/api'
+function resolveApiPrefix(): string {
+  if (import.meta.env.DEV) return '/api'
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+  if (!base) return '/api'
+  return `${base.replace(/\/$/, '')}/api`
+}
+
+const API_PREFIX = resolveApiPrefix()
 
 export class ApiError extends Error {
   status: number
