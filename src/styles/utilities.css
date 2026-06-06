@@ -1,0 +1,102 @@
+@layer utilities {
+  .scanline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(to right, transparent, #06edf9, transparent);
+    opacity: 0.5;
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .input-glow:focus-within {
+    box-shadow: 0 0 15px rgba(6, 237, 249, 0.15);
+    border-color: #06edf9 !important;
+  }
+
+  .input-glow:focus-within .input-icon {
+    color: #06edf9;
+  }
+
+  .shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transform: translateX(-100%);
+    transition: transform 0.7s ease-in-out;
+  }
+
+  .auth-btn:hover .shimmer {
+    transform: translateX(100%);
+  }
+
+  .table-row-hover:hover {
+    background: linear-gradient(90deg, rgba(6, 237, 249, 0.05) 0%, rgba(6, 237, 249, 0) 100%);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 237, 249, 0.35) rgba(255, 255, 255, 0.04);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 999px;
+    margin: 2px 0;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(6, 237, 249, 0.28);
+    border-radius: 999px;
+    border: 1px solid rgba(6, 237, 249, 0.12);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 237, 249, 0.45);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  90% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(800px);
+    opacity: 0;
+  }
+
+  
+}

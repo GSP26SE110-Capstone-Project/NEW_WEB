@@ -1,0 +1,189 @@
+@layer components {
+  .glass-panel {
+    background: var(--color-panel);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-panel-border);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .auth-btn {
+    background: var(--color-primary);
+    color: #0f2223;
+    box-shadow:
+      0 0 10px rgba(6, 237, 249, 0.3),
+      0 0 20px rgba(6, 237, 249, 0.1);
+  }
+
+  .auth-btn:hover {
+    background: #3fffff;
+    box-shadow:
+      0 0 15px rgba(6, 237, 249, 0.5),
+      0 0 30px rgba(6, 237, 249, 0.2);
+  }
+
+  .auth-btn:active {
+    background: #00dce8;
+  }
+
+  .glass-sidebar {
+    background: rgba(11, 16, 26, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .active-nav-item {
+    background: linear-gradient(90deg, rgba(6, 237, 249, 0.1) 0%, rgba(6, 237, 249, 0) 100%);
+    border-left: 2px solid #06edf9;
+  }
+
+  .btn-glow:hover {
+    box-shadow: 0 0 20px rgba(6, 237, 249, 0.4);
+  }
+
+  .cinema-floor {
+    perspective: 1100px;
+    perspective-origin: 50% 30%;
+  }
+
+  .cinema-grid {
+    transform: rotateX(14deg);
+    transform-style: preserve-3d;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  }
+
+  .cinema-seat:hover:not(:disabled) {
+    transform: translateZ(6px) scale(1.08);
+  }
+
+  .dark-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 237, 249, 0.35) rgba(255, 255, 255, 0.05);
+  }
+
+  .dark-scrollbar::-webkit-scrollbar {
+    width: 7px;
+  }
+
+  .dark-scrollbar::-webkit-scrollbar-track {
+    margin: 4px 0;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 999px;
+  }
+
+  .dark-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(6, 237, 249, 0.28);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 237, 249, 0.48);
+  }
+
+  .dark-scrollbar::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  /* Viewport scroll (landing page, long public pages) */
+  html.dark-scrollbar-root {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 237, 249, 0.35) rgba(5, 11, 11, 0.85);
+  }
+
+  html.dark-scrollbar-root::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  html.dark-scrollbar-root::-webkit-scrollbar-track {
+    background: rgba(5, 11, 11, 0.85);
+  }
+
+  html.dark-scrollbar-root::-webkit-scrollbar-thumb {
+    background: rgba(6, 237, 249, 0.28);
+    border-radius: 999px;
+    border: 2px solid rgba(5, 11, 11, 0.85);
+    background-clip: padding-box;
+  }
+
+  html.dark-scrollbar-root::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 237, 249, 0.45);
+  }
+
+  html.dark-scrollbar-root::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  /* Nested lists inside bordered panels (modals, previews) */
+  .dark-scrollbar-inset {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 237, 249, 0.32) transparent;
+  }
+
+  .dark-scrollbar-inset::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .dark-scrollbar-inset::-webkit-scrollbar-track {
+    margin: 6px 2px;
+    background: transparent;
+    border-radius: 999px;
+  }
+
+  .dark-scrollbar-inset::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      rgba(6, 237, 249, 0.42) 0%,
+      rgba(6, 237, 249, 0.18) 100%
+    );
+    border-radius: 999px;
+    border: 1px solid rgba(6, 237, 249, 0.12);
+  }
+
+  .dark-scrollbar-inset::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      rgba(6, 237, 249, 0.55) 0%,
+      rgba(6, 237, 249, 0.28) 100%
+    );
+  }
+
+  .dark-scrollbar-inset::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  .zone-floor-scene {
+    perspective: 1000px;
+    perspective-origin: 50% 35%;
+  }
+
+  .zone-floor-grid {
+    transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .zone-voxel-btn {
+    transform-style: preserve-3d;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .zone-voxel-btn:hover:not(:disabled) {
+    transform: translateZ(10px) scale(1.04);
+  }
+
+  .zone-voxel-btn.is-selected {
+    transform: translateZ(16px) scale(1.06);
+    z-index: 20;
+  }
+}
